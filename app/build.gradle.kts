@@ -11,6 +11,11 @@ plugins {
 dependencies {
     implementation("org.apache.commons:commons-text")
     implementation(project(":utilities"))
+    implementation("io.opentelemetry:opentelemetry-api:1.6.0")
+    implementation("io.opentelemetry:opentelemetry-sdk:1.6.0")
+    implementation("io.opentelemetry:opentelemetry-exporter-otlp:1.6.0")
+    implementation("io.grpc:grpc-api:1.32.2")
+    implementation("io.opentelemetry:opentelemetry-exporter-otlp-http-trace:1.14.0")
 }
 
 application {

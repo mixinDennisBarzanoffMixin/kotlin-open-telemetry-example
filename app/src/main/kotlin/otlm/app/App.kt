@@ -3,12 +3,68 @@
  */
 package otlm.app
 
-import otlm.utilities.StringUtils
+import io.opentelemetry.api.trace.Span
+import io.opentelemetry.api.trace.SpanKind
+import io.opentelemetry.api.trace.Tracer
+import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter
+import io.opentelemetry.sdk.OpenTelemetrySdk
+import io.opentelemetry.sdk.trace.SdkTracerProvider
+import io.opentelemetry.sdk.trace.export.BatchSpanProcessor
+import java.lang.RuntimeException
+import java.util.concurrent.TimeUnit
 
-import org.apache.commons.text.WordUtils
 
-fun main() {
-    val tokens = StringUtils.split(MessageUtils.getMessage())
-    val result = StringUtils.join(tokens)
-    println(WordUtils.capitalize(result))
+object Main {
+    private val AUTH_TOKEN = System.getenv("AUTH_TOKEN") ?: throw RuntimeException("Missing AUTH_TOKEN env variable")
+    private const val OTEL_ENDPOINT = "https://ipp09825.live.dynatrace.com/api/v2/otlp/v1/traces"
+    private const val SERVICE_NAME = "my-service-name"
+    @JvmStatic
+    fun main(args: Array<String>) {
+
+        // Configure the SDK with BatchSpanProcessor and OTLP HTTP exporter
+        val exporter: OtlpHttpSpanExporter =
+            OtlpHttpSpanExporter.builder().setEndpoint(OTEL_ENDPOINT).addHeader("Authorization", AUTH_TOKEN).build()
+        val spanProcessor = BatchSpanProcessor.builder(exporter).build()
+        val tracerProvider = SdkTracerProvider.builder().addSpanProcessor(spanProcessor).build()
+
+        // Initialize the OpenTelemetry SDK
+        val openTelemetrySdk =
+            OpenTelemetrySdk.builder().setTracerProvider(tracerProvider).buildAndRegisterGlobal()
+
+        // Obtain a Tracer
+        val tracer = openTelemetrySdk.getTracer(SERVICE_NAME)
+
+        // Create a span
+        val span = tracer.spanBuilder("my-operation").setSpanKind(SpanKind.CLIENT).startSpan()
+        span.setAttribute("my-attribute", "my-attribute-value")
+        try {
+            doSomeWork()
+        } finally {
+            // End the span
+            span.end()
+        }
+
+        // Gracefully shutdown the SDK and export the remaining data
+        val result = openTelemetrySdk.sdkTracerProvider.shutdown()
+        result.join(10, TimeUnit.SECONDS)
+    }
+
+    private fun doSomeWork() {
+        // Do work here
+    }
+}
+
+
+fun myTrackedFunction(tracer: Tracer) {
+    val span: Span = tracer.spanBuilder("my-operation").setSpanKind(SpanKind.INTERNAL).startSpan()
+    span.setAttribute("my-key", "my-value")
+    try {
+        var i = 0
+        repeat(500000) {
+            i++
+        }
+    } finally {
+        // Always make sure to end the Span
+        span.end()
+    }
 }
