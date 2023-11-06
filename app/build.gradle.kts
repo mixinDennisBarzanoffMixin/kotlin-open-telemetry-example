@@ -20,5 +20,5 @@ dependencies {
 
 application {
     // Define the main class for the application.
-    mainClass.set("otlm.app.AppKt")
+    mainClass.set("otlm.app.Main")
 }
